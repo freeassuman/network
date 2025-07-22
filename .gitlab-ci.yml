@@ -1,0 +1,85 @@
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_ROOT: "terraform/environments"
+  TF_VERSION: "1.6.0"
+
+before_script:
+  - apk add --no-cache curl unzip
+  - curl -o terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+  - unzip terraform.zip && mv terraform /usr/local/bin/terraform
+  - terraform -version
+
+validate:
+  stage: validate
+  script:
+    - cd $TF_ROOT/dev && terraform init -backend=false
+    - terraform validate
+
+plan_dev:
+  stage: plan
+  script:
+    - cd $TF_ROOT/dev
+    - terraform init
+    - terraform plan -var-file="terraform.tfvars" -out="plan.tfplan"
+  artifacts:
+    paths:
+      - $TF_ROOT/dev/plan.tfplan
+
+apply_dev:
+  stage: apply
+  script:
+    - cd $TF_ROOT/dev
+    - terraform init
+    - terraform apply "plan.tfplan"
+  environment:
+    name: dev
+  needs: ["plan_dev"]
+
+plan_test:
+  stage: plan
+  script:
+    - cd $TF_ROOT/test
+    - terraform init
+    - terraform plan -var-file="terraform.tfvars" -out="plan.tfplan"
+  artifacts:
+    paths:
+      - $TF_ROOT/test/plan.tfplan
+  needs: ["apply_dev"]
+
+apply_test:
+  stage: apply
+  script:
+    - cd $TF_ROOT/test
+    - terraform init
+    - terraform apply "plan.tfplan"
+  environment:
+    name: test
+  needs: ["plan_test"]
+
+plan_prod:
+  stage: plan
+  script:
+    - cd $TF_ROOT/prod
+    - terraform init
+    - terraform plan -var-file="terraform.tfvars" -out="plan.tfplan"
+  artifacts:
+    paths:
+      - $TF_ROOT/prod/plan.tfplan
+  needs: ["apply_test"]
+
+apply_prod:
+  stage: apply
+  script:
+    - cd $TF_ROOT/prod
+    - terraform init
+    - terraform apply "plan.tfplan"
+  environment:
+    name: production
+  when: manual
+  only:
+    - main
+  needs: ["plan_prod"]
