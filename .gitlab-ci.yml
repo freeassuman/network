@@ -71,19 +71,6 @@ test-apply:
   environment:
     name: test
 
-.security-scan-test:
-  stage: security-scan
-  tags:
-    - pltest
-    - shell
-    - suman
-  script:
-    - apt-get update && apt-get install -y wget unzip
-    - wget https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64 -O tfsec
-    - chmod +x tfsec
-    - ./tfsec $TF_ROOT/test
-  allow_failure: true
-
 security-scan-test:
   stage: security-scan
   tags:
